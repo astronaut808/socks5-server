@@ -22,8 +22,13 @@ Simple socks5 server using go-socks5 with authentication, allowed ips list and d
 |PROXY_USER|String|EMPTY|Set proxy user (also required existed PROXY_PASS)|
 |PROXY_PASSWORD|String|EMPTY|Set proxy password for auth, used with PROXY_USER|
 |PROXY_PORT|String|1080|Set listen port for application inside docker container|
+|PROXY_LISTEN_IP|String|0.0.0.0|Listening address. Change to 127.0.0.1 if you want to restrict proxy access to localhost only.|
 |ALLOWED_DEST_FQDN|String|EMPTY|Allowed destination address regular expression pattern. Default allows all.|
 |ALLOWED_IPS|String|Empty|Set allowed IP's that can connect to proxy, separator `,`|
+|MAX_CONNECTIONS|Int|100|Maximum number of concurrent client connections. New connections are queued until slots free up.|
+|TIMEOUT|Int|300|Connection read/write timeout in seconds. Prevents stuck or idle connections from hanging forever.|
+
+
 
 
 # Build your own image:
