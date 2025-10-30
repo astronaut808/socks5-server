@@ -1,61 +1,67 @@
-name: "Latest tag from master branch"
-env:
-  DOCKERHUB_REPOSITORY: serjs/go-socks5-proxy
+name: Build and Push Docker image
 
 on:
-  pull_request:
-    branches: master
   push:
-    branches: master
+    branches:
+      - master
   release:
     types: [published, edited]
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/go-socks5-proxy
+
 jobs:
   hadolint:
-    name: hadolint
+    name: Lint Dockerfile
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: hadolint
-      uses: hadolint/hadolint-action@v1.5.0
-      with:
-        ignore: DL3018
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v1
-      -
-        name: Set up Docker Buildx
-        id: buildx
-        uses: crazy-max/ghaction-docker-buildx@v1.1.0
-      -
-        name: Print builder available platforms
-        run: echo ${{ steps.buildx.outputs.platforms }}
-      -
-        id: meta
-        uses: docker/metadata-action@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v1.5.0
         with:
-          images: serjs/go-socks5-proxy
+          ignore: DL3018
+
+  build-and-push:
+    name: Build and Push multi-arch Docker image
+    runs-on: ubuntu-latest
+    needs: hadolint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
             type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{raw}}
-      -
-        name: Dockerhub login
-        uses: docker/login-action@v2
-        if: github.event_name != 'pull_request'
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Run Buildx for amd64, armv7, arm64 architectures
-        uses: docker/build-push-action@v2
+            type=semver,pattern={{version}}
+            type=sha
+
+      - name: Build and Push Docker image (multi-arch)
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm/v7,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Print image info
+        run: |
+          echo "✅ Image pushed to ${{ env.IMAGE_NAME }} with tags:"
+          echo "${{ steps.meta.outputs.tags }}"
