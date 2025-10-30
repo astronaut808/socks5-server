@@ -1,8 +1,7 @@
-version: '3'
 services:
   socks5:
     restart: always
-    image: serjs/go-socks5-proxy
+    image: ghcr.io/astronaut808/go-socks5-proxy:latest
     env_file: .env
     ports:
       - "1080:1080"
